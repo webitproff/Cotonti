@@ -122,7 +122,7 @@ $L['forums_confirm_delete_post'] = 'Вы действительно хотите
 /**
  * Unused?
  */
-
+$L['adm_help_forums'] = 'Помощь. Текст подсказки по форуму';
 $L['forums_polltooshort'] = 'Количество вариантов ответа должно быть не менее двух';
 $L['for_onlinestatus0'] = 'не в сети';
 $L['for_onlinestatus1'] = 'в сети';
