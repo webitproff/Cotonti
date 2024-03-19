@@ -418,4 +418,4 @@ foreach (cot_getextplugins('admin.urls.tags') as $pl)
 /* ===== */
 
 $t->parse('MAIN');
-$adminmain = $t->text('MAIN');
+$adminMain = $t->text('MAIN');
