@@ -9,10 +9,12 @@
 
 defined('COT_CODE') or die('Wrong URL');
 
+require_once cot_langfile('visitor_stats', 'plug');
 require_once cot_incfile('visitor_stats', 'plug', 'inc/CrawlerDetectService');
 require_once cot_incfile('visitor_stats', 'plug', 'inc/VisitorStatsRepository');
 require_once cot_incfile('visitor_stats', 'plug', 'inc/VisitorStatsService');
 
+// Register all tables
 Cot::$db->registerTable('visitor_stats');
 Cot::$db->registerTable('visitor_stats_daily');
 Cot::$db->registerTable('visitor_stats_crawlers');
