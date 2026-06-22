@@ -1,43 +1,61 @@
 <?php
-/**
- * Crawler-Detect library
- * Embedded version without Composer dependency
- * 
- * @package VisitorStats
- * @copyright (c) Mark Beech
- * @license MIT
- */
 
-namespace CrawlerDetect;
+namespace Jaybizzle\CrawlerDetect;
+
+use Jaybizzle\CrawlerDetect\Fixtures\AbstractProvider;
+use Jaybizzle\CrawlerDetect\Fixtures\Crawlers;
+use Jaybizzle\CrawlerDetect\Fixtures\Exclusions;
+use Jaybizzle\CrawlerDetect\Fixtures\Headers;
 
 class CrawlerDetect
 {
     protected $userAgent;
     protected $httpHeaders = [];
     protected $matches = [];
-    protected static $crawlers = [
-        'Googlebot', 'Bingbot', 'Slurp', 'DuckDuckGo', 'Baiduspider',
-        'YandexBot', 'YandexMobileBot', 'FacebookExternalHit', 'Twitterbot',
-        'LinkedInBot', 'WhatsApp', 'Telegram', 'AppleBot', 'Qwantify',
-        'Crawl', 'Spider', 'Bot', 'Crawler', 'Scraper', 'Robot',
-        'curl', 'wget', 'Scraper', 'MJ12bot', 'SEMrushBot', 'DotBot',
-        'Exabot', 'Facebot', 'ia_archiver', 'Java', 'AhrefsBot',
-        'SemrushBot', 'MJ12bot', 'MailRu', 'Uptimerobot'
-    ];
+    protected $crawlers;
+    protected $exclusions;
+    protected $uaHttpHeaders;
+    protected $compiledRegex;
+    protected $compiledExclusions;
+    protected static $compileCache = [];
 
     public function __construct(?array $headers = null, $userAgent = null)
     {
+        $this->crawlers = new Crawlers();
+        $this->exclusions = new Exclusions();
+        $this->uaHttpHeaders = new Headers();
+
+        $this->compiledRegex = $this->compileFixtureRegex($this->crawlers);
+        $this->compiledExclusions = $this->compileFixtureRegex($this->exclusions);
+
         $this->setHttpHeaders($headers);
         $this->setUserAgent($userAgent);
     }
 
+    protected function compileFixtureRegex(AbstractProvider $fixture)
+    {
+        $class = get_class($fixture);
+
+        if (!isset(self::$compileCache[$class])) {
+            self::$compileCache[$class] = $this->compileRegex($fixture->getAll());
+        }
+
+        return self::$compileCache[$class];
+    }
+
+    public function compileRegex($patterns)
+    {
+        return '(?:' . implode('|', $patterns) . ')';
+    }
+
     public function setHttpHeaders($httpHeaders = null)
     {
-        if (!is_array($httpHeaders) || empty($httpHeaders)) {
+        if (!is_array($httpHeaders) || !count($httpHeaders)) {
             $httpHeaders = $_SERVER;
         }
 
         $this->httpHeaders = [];
+
         foreach ($httpHeaders as $key => $value) {
             if (strpos($key, 'HTTP_') === 0) {
                 $this->httpHeaders[$key] = $value;
@@ -45,40 +63,54 @@ class CrawlerDetect
         }
     }
 
+    public function getUaHttpHeaders()
+    {
+        return $this->uaHttpHeaders->getAll();
+    }
+
     public function setUserAgent($userAgent = null)
     {
         if (is_null($userAgent)) {
             $userAgent = '';
-            $uaHeaders = ['HTTP_USER_AGENT', 'HTTP_X_SCANNER', 'HTTP_X_AUTOMATED_TOOL'];
-            foreach ($uaHeaders as $header) {
-                if (isset($this->httpHeaders[$header])) {
-                    $userAgent .= $this->httpHeaders[$header] . ' ';
+
+            foreach ($this->getUaHttpHeaders() as $altHeader) {
+                if (isset($this->httpHeaders[$altHeader])) {
+                    $userAgent .= $this->httpHeaders[$altHeader] . ' ';
                 }
             }
+
             if ($userAgent === '') {
                 $userAgent = null;
             }
         }
+
         return $this->userAgent = $userAgent;
     }
 
     public function isCrawler($userAgent = null)
     {
         $this->matches = [];
-        $agent = $userAgent ?: $this->userAgent;
 
-        if (empty($agent)) {
+        $agent = preg_replace(
+            '/' . $this->compiledExclusions . '/i',
+            '',
+            $userAgent ?: $this->userAgent ?: ''
+        );
+
+        if ($agent === null || trim($agent) === '') {
             return false;
         }
 
-        foreach (self::$crawlers as $crawler) {
-            if (stripos($agent, $crawler) !== false) {
-                $this->matches[0] = $crawler;
-                return true;
-            }
+        $agent = trim($agent);
+
+        $result = preg_match('/' . $this->compiledRegex . '/i', $agent, $this->matches);
+
+        if ($result === false) {
+            $this->matches = [];
+            return false;
         }
 
-        return false;
+        return (bool)$result;
     }
 
     public function getMatches()
@@ -91,4 +123,3 @@ class CrawlerDetect
         return $this->userAgent;
     }
 }
-?>
